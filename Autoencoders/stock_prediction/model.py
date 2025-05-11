@@ -8,8 +8,37 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 class StockPredictionAE:
+    """LSTM-based Autoencoder for Stock Price Prediction
+    
+    This class implements an autoencoder architecture using LSTM layers
+    for learning patterns in stock price movements and making future predictions.
+    The model uses a sequence-to-sequence approach where:
+    - Encoder: Compresses the input sequence into a latent representation
+    - Decoder: Reconstructs the sequence and predicts future values
+    
+    Features:
+    - GPU acceleration with mixed precision training
+    - Batch normalization for stable training
+    - Dropout for regularization
+    - Dynamic learning rate scheduling
+    - Early stopping to prevent overfitting
+    
+    Example:
+        model = StockPredictionAE()
+        model.train('AAPL', epochs=10)
+        predictions = model.predict_future('AAPL')
+    """
+    
     def __init__(self, sequence_length=60, prediction_length=30):
-        """Initialize Stock Prediction Autoencoder with Metal GPU support"""
+        """Initialize Stock Prediction Autoencoder with Metal GPU support
+        
+        Args:
+            sequence_length (int): Length of the input sequence
+            prediction_length (int): Length of the predicted sequence
+        
+        Returns:
+            None
+        """
         # Enable Metal GPU
         try:
             physical_devices = tf.config.list_physical_devices('GPU')
@@ -79,7 +108,7 @@ class StockPredictionAE:
             'df': df
         }
     
-    def train(self, symbol='AAPL', epochs=10):
+    def train(self, symbol='AAPL', epochs=10, callbacks=None):
         """Train the model on stock data"""
         # Get stock data
         data = self.get_stock_data(symbol)
@@ -153,6 +182,20 @@ class StockPredictionAE:
             # Get dates for this sequence
             sequence_dates = dates[idx + self.sequence_length:idx + self.sequence_length + self.prediction_length]
             
+            callbacks=[
+                tf.keras.callbacks.EarlyStopping(
+                    monitor='val_loss',
+                    patience=3,
+                    restore_best_weights=True
+                ),
+                tf.keras.callbacks.ReduceLROnPlateau(
+                    monitor='val_loss',
+                    factor=0.5,
+                    patience=2,
+                    min_lr=1e-6
+                ),
+                *([callbacks] if callbacks else [])
+            ],
             results.append({
                 'dates': sequence_dates,
                 'actual': actual_prices.flatten(),
