@@ -40,12 +40,29 @@ with train_tab:
             epochs = st.slider("Number of epochs", 5, 50, 10)
         
         if st.button('🏃 Train Model', type='primary'):
-            with st.spinner(f'Training model on {stock_symbol} data... This may take a few minutes...'):
-                history = st.session_state.model.train(symbol=stock_symbol, epochs=epochs)
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            
+            # Custom callback to update progress
+            class ProgressCallback(tf.keras.callbacks.Callback):
+                def on_epoch_end(self, epoch, logs=None):
+                    progress = (epoch + 1) / epochs
+                    progress_bar.progress(progress)
+                    status_text.text(f'Training progress: {(progress * 100):.1f}% (Epoch {epoch + 1}/{epochs})')
+                    if logs:
+                        status_text.text(f'Training progress: {(progress * 100):.1f}% (Epoch {epoch + 1}/{epochs}) - Loss: {logs["loss"]:.4f}')
+            
+            with st.spinner(f'Training model on {stock_symbol} data...'):
+                history = st.session_state.model.train(
+                    symbol=stock_symbol,
+                    epochs=epochs,
+                    callbacks=[ProgressCallback()]
+                )
                 st.session_state.trained = True
                 st.session_state.stock_symbol = stock_symbol
                 st.session_state.eval_results = st.session_state.model.evaluate_predictions(stock_symbol)
-                st.success('✅ Model trained successfully!')
+                progress_bar.progress(1.0)
+                status_text.success('✅ Model trained successfully!')
                 st.rerun()
     else:
         st.success(f'✅ Model is trained on {st.session_state.stock_symbol} stock data!')
