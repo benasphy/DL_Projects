@@ -12,15 +12,19 @@ import seaborn as sns
 class MNISTModel:
     def __init__(self):
         """Initialize MNIST model with Metal GPU support"""
-        # Enable Metal GPU
+        # Enable Metal GPU but disable mixed precision for compatibility
         try:
             physical_devices = tf.config.list_physical_devices('GPU')
             if physical_devices:
                 for device in physical_devices:
                     tf.config.experimental.set_memory_growth(device, True)
                 print(f"Metal GPU enabled: {physical_devices}")
-        except:
-            print("No GPU found, using CPU instead")
+                
+                # Note: Mixed precision is disabled due to compatibility issues
+                # tf.keras.mixed_precision.set_global_policy('mixed_float16')
+        except Exception as e:
+            print(f"GPU configuration error: {e}")
+            print("Using CPU instead")
         
         self.model = None
         self.history = None
