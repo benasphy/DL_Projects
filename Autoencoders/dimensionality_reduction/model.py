@@ -8,7 +8,7 @@ from sklearn.manifold import TSNE
 class DimensionalityReductionAE:
     def __init__(self, encoding_dim=32):
         """Initialize Dimensionality Reduction Autoencoder with Metal GPU support"""
-        # Enable Metal GPU
+        # Enable Metal GPU but disable mixed precision for compatibility
         try:
             physical_devices = tf.config.list_physical_devices('GPU')
             if physical_devices:
@@ -16,10 +16,11 @@ class DimensionalityReductionAE:
                     tf.config.experimental.set_memory_growth(device, True)
                 print(f"Metal GPU enabled: {physical_devices}")
                 
-                # Enable mixed precision for faster training
-                tf.keras.mixed_precision.set_global_policy('mixed_float16')
-        except:
-            print("No GPU found, using CPU instead")
+                # Note: Mixed precision is disabled due to compatibility issues
+                # tf.keras.mixed_precision.set_global_policy('mixed_float16')
+        except Exception as e:
+            print(f"GPU configuration error: {e}")
+            print("Using CPU instead")
         
         self.encoding_dim = encoding_dim
         self.input_dim = 784  # 28x28 pixels
