@@ -1,0 +1,647 @@
+import streamlit as st
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import plotly.express as px
+import plotly.graph_objects as go
+from model import TextGenerationModel
+from improved_generator import ImprovedTextGenerator
+import os
+import re
+
+# Page config
+st.set_page_config(
+    page_title="Text Generation with RNNs",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# Initialize session state
+if 'model' not in st.session_state:
+    st.session_state.model = TextGenerationModel()
+    st.session_state.trained = False
+    st.session_state.text_data = None
+    st.session_state.X_train = None
+    st.session_state.y_train = None
+    st.session_state.X_test = None
+    st.session_state.y_test = None
+
+# Sidebar
+st.sidebar.title('📝 Text Generation with RNNs')
+st.sidebar.markdown('---')
+
+# Model configuration
+st.sidebar.subheader('🧠 Model Configuration')
+
+model_type = st.sidebar.selectbox(
+    'RNN Architecture',
+    ['LSTM', 'GRU', 'Attention'],
+    index=0
+)
+
+tokenization_level = st.sidebar.radio(
+    'Tokenization Level',
+    ['Character', 'Word'],
+    index=0
+)
+
+max_words = st.sidebar.slider(
+    'Max Vocabulary Size',
+    min_value=1000,
+    max_value=20000,
+    value=5000,
+    step=1000
+)
+
+max_sequence_length = st.sidebar.slider(
+    'Max Sequence Length',
+    min_value=10,
+    max_value=100,
+    value=40,
+    step=10
+)
+
+embedding_dim = st.sidebar.slider(
+    'Embedding Dimension',
+    min_value=50,
+    max_value=300,
+    value=100,
+    step=50
+)
+
+# Training configuration
+st.sidebar.markdown('---')
+st.sidebar.subheader('🏋️ Training Configuration')
+
+epochs = st.sidebar.slider(
+    'Training Epochs',
+    min_value=1,
+    max_value=50,
+    value=10,
+    step=5,
+    key='training_epochs'
+)
+
+batch_size = st.sidebar.slider(
+    'Batch Size',
+    min_value=32,
+    max_value=256,
+    value=64,
+    step=32,
+    key='batch_size'
+)
+
+# Generation configuration
+st.sidebar.markdown('---')
+st.sidebar.subheader('🔮 Generation Configuration')
+
+temperature = st.sidebar.slider(
+    'Temperature',
+    min_value=0.1,
+    max_value=2.0,
+    value=0.7,
+    step=0.1,
+    key='sidebar_temperature'
+)
+
+# Main content
+st.title('📝 Text Generation with Recurrent Neural Networks')
+
+# Create tabs
+data_tab, train_tab, generate_tab, explain_tab = st.tabs([
+    "📊 Data Analysis", "🏋️ Model Training", "🔮 Text Generation", "📚 RNN Explanation"
+])
+
+with data_tab:
+    st.markdown("### Text Data")
+    
+    # Option to upload data or use sample data
+    data_option = st.radio(
+        "Choose data source",
+        ["Upload text file", "Use sample data"]
+    )
+    
+    if data_option == "Upload text file":
+        uploaded_file = st.file_uploader("Upload text file", type=["txt"])
+        if uploaded_file is not None:
+            # Save uploaded file
+            with open("uploaded_data.txt", "wb") as f:
+                f.write(uploaded_file.getbuffer())
+            
+            # Load data
+            try:
+                text_data = st.session_state.model.load_data("uploaded_data.txt")
+                st.success(f"Loaded {len(text_data)} characters of text data")
+                st.session_state.text_data = text_data
+            except Exception as e:
+                st.error(f"Error loading data: {e}")
+    else:
+        if st.button('Load Sample Data'):
+            # Sample texts
+            sample_texts = {
+                "Shakespeare": """
+                To be, or not to be, that is the question:
+                Whether 'tis nobler in the mind to suffer
+                The slings and arrows of outrageous fortune,
+                Or to take arms against a sea of troubles
+                And by opposing end them. To die—to sleep,
+                No more; and by a sleep to say we end
+                The heart-ache and the thousand natural shocks
+                That flesh is heir to: 'tis a consummation
+                Devoutly to be wish'd. To die, to sleep;
+                To sleep, perchance to dream—ay, there's the rub:
+                For in that sleep of death what dreams may come,
+                When we have shuffled off this mortal coil,
+                Must give us pause—there's the respect
+                That makes calamity of so long life.
+                """,
+                
+                "Sci-Fi": """
+                The spacecraft hovered silently above the alien landscape. Captain Zara scanned the horizon, searching for signs of life. The twin moons cast an eerie blue glow over the crystalline structures that dotted the plains.
+                
+                "Any readings?" she asked her science officer.
+                
+                "Atmospheric composition is breathable, but there's something strange about the energy signatures," replied Commander Vex. "I've never seen patterns like these before."
+                
+                Zara nodded. This was exactly why they had traveled across three galaxies - to discover the unknown. The mission was clear: establish contact if possible, but prioritize data collection and avoid contamination.
+                
+                "Prepare the landing module," she ordered. "Small team only. Full containment protocols."
+                
+                As they descended through the swirling clouds, none of them could have anticipated what awaited them on the surface - or how it would change their understanding of consciousness itself.
+                """,
+                
+                "Fantasy": """
+                The ancient dragon Azurath circled the mountain peak, his scales gleaming like sapphires in the morning sun. Below, the kingdom of Eldoria spread out in a tapestry of fields, forests, and the shimmering capital city with its white towers.
+                
+                Elian watched from the hidden cave, clutching the dragonstone amulet that had been passed down through generations of his family. The prophecy had been clear: when darkness threatens to consume the realm, the last dragonrider would emerge.
+                
+                He had never believed the old stories. Dragons were supposed to be extinct, hunted to oblivion during the Great Purge. Yet here one was, magnificent and terrifying. And somehow, the amulet was growing warm against his chest, pulsing in rhythm with the dragon's wingbeats.
+                
+                "It's time," whispered the old sage beside him. "The shadows gather in the north. The Dark Lord's armies march. Only you can unite the kingdoms."
+                
+                Elian swallowed hard. He was no hero - just a blacksmith's apprentice from a forgotten village. But destiny, it seemed, had other plans.
+                """
+            }
+            
+            # Let user select a sample
+            sample_choice = st.selectbox("Choose a sample text", list(sample_texts.keys()))
+            
+            # Save selected sample
+            with open("sample_data.txt", "w") as f:
+                f.write(sample_texts[sample_choice])
+            
+            # Load data
+            text_data = st.session_state.model.load_data("sample_data.txt")
+            st.success(f"Loaded {len(text_data)} characters of {sample_choice} text data")
+            st.session_state.text_data = text_data
+    
+    # Display data if available
+    if st.session_state.text_data is not None:
+        # Show data info
+        st.markdown("### Text Preview")
+        st.text_area("Text Sample", st.session_state.text_data[:500] + "...", height=200)
+        
+        # Show text statistics
+        st.markdown("### Text Statistics")
+        
+        # Calculate statistics
+        total_chars = len(st.session_state.text_data)
+        total_words = len(st.session_state.text_data.split())
+        unique_chars = len(set(st.session_state.text_data))
+        unique_words = len(set(st.session_state.text_data.lower().split()))
+        
+        # Display statistics
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Total Characters", total_chars)
+        col2.metric("Total Words", total_words)
+        col3.metric("Unique Characters", unique_chars)
+        col4.metric("Unique Words", unique_words)
+        
+        # Character frequency
+        st.markdown("### Character Frequency")
+        
+        # Calculate character frequency
+        char_freq = {}
+        for char in st.session_state.text_data:
+            if char in char_freq:
+                char_freq[char] += 1
+            else:
+                char_freq[char] = 1
+        
+        # Sort by frequency
+        char_freq = {k: v for k, v in sorted(char_freq.items(), key=lambda item: item[1], reverse=True)}
+        
+        # Take top 20
+        top_chars = list(char_freq.keys())[:20]
+        top_freqs = list(char_freq.values())[:20]
+        
+        # Create DataFrame
+        char_df = pd.DataFrame({
+            'Character': top_chars,
+            'Frequency': top_freqs
+        })
+        
+        # Plot
+        fig = px.bar(
+            char_df,
+            x='Character',
+            y='Frequency',
+            title='Top 20 Character Frequencies'
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+with train_tab:
+    st.markdown("### Train Text Generation Model")
+    
+    if st.session_state.text_data is None:
+        st.warning("Please load text data first in the Data Analysis tab")
+    else:
+        if st.button('Prepare Data & Train Model'):
+            with st.spinner('Preparing data...'):
+                # Update model parameters
+                use_attention = (model_type == 'Attention')
+                st.session_state.model = TextGenerationModel(
+                    max_words=max_words,
+                    max_sequence_length=max_sequence_length,
+                    embedding_dim=embedding_dim,
+                    use_attention=use_attention
+                )
+                
+                # Prepare data
+                char_level = (tokenization_level == 'Character')
+                X_train, y_train, X_test, y_test = st.session_state.model.prepare_data(
+                    st.session_state.text_data,
+                    char_level=char_level
+                )
+                
+                st.session_state.X_train = X_train
+                st.session_state.y_train = y_train
+                st.session_state.X_test = X_test
+                st.session_state.y_test = y_test
+                
+                # Build model
+                model_type_map = {
+                    'LSTM': 'lstm',
+                    'GRU': 'gru',
+                    'Attention': 'attention'
+                }
+                st.session_state.model.build_model(model_type_map[model_type])
+                
+                # Show model summary
+                st.markdown("### Model Architecture")
+                model_summary = []
+                st.session_state.model.model.summary(print_fn=lambda x: model_summary.append(x))
+                st.code('\n'.join(model_summary))
+                
+            with st.spinner('Training model...'):
+                # Train model
+                history = st.session_state.model.train(
+                    X_train, y_train, X_test, y_test,
+                    epochs=epochs,
+                    batch_size=batch_size
+                )
+                
+                st.session_state.trained = True
+                
+                # Plot training history
+                st.markdown("### Training History")
+                fig = st.session_state.model.plot_training_history()
+                st.pyplot(fig)
+                
+                # Generate sample text
+                st.markdown("### Sample Generated Text")
+                
+                if char_level:
+                    seed_text = st.session_state.text_data[:max_sequence_length]
+                    generated_text = st.session_state.model.generate_text(
+                        seed_text,
+                        length=100,
+                        temperature=temperature
+                    )
+                else:
+                    seed_text = ' '.join(st.session_state.text_data.split()[:5])
+                    generated_text = st.session_state.model.generate_text(
+                        seed_text,
+                        length=50,
+                        temperature=temperature
+                    )
+                
+                st.text_area("Generated Text", generated_text, height=200)
+
+with generate_tab:
+    st.markdown("### Text Generation")
+    
+    if not st.session_state.trained:
+        st.warning("Please train the model first in the Model Training tab")
+    else:
+        st.markdown("### Generate Text")
+        
+        # Text input
+        if tokenization_level == 'Character':
+            default_seed = st.session_state.text_data[:max_sequence_length]
+            seed_text = st.text_area("Enter seed text:", default_seed)
+            
+            # Ensure seed text is long enough
+            if len(seed_text) < max_sequence_length:
+                st.warning(f"Seed text must be at least {max_sequence_length} characters long")
+            else:
+                # Generation parameters
+                gen_length = st.slider(
+                    'Generation Length (characters)',
+                    min_value=50,
+                    max_value=500,
+                    value=200,
+                    step=50,
+                    key='char_gen_length'
+                )
+                
+                gen_temperature = st.slider(
+                    'Temperature',
+                    min_value=0.1,
+                    max_value=2.0,
+                    value=temperature,
+                    step=0.1,
+                    key='char_gen_temperature'
+                )
+                
+                if st.button('Generate Text'):
+                    with st.spinner('Generating text...'):
+                        # Create improved generator
+                        improved_generator = ImprovedTextGenerator(
+                            model=st.session_state.model.model,
+                            tokenizer=st.session_state.model.tokenizer,
+                            max_sequence_length=st.session_state.model.max_sequence_length,
+                            char_mode=st.session_state.model.char_mode,
+                            char_to_idx=st.session_state.model.char_to_idx,
+                            idx_to_char=st.session_state.model.idx_to_char,
+                            vocab_size=st.session_state.model.vocab_size
+                        )
+                        
+                        # Generate text with improved generator
+                        generated_text = improved_generator.generate_text(
+                            seed_text,
+                            length=gen_length,
+                            temperature=gen_temperature
+                        )
+                        
+                        # Display generated text
+                        st.markdown("### Generated Text")
+                        st.write(generated_text)
+                        # Highlight seed text
+                        highlighted_text = f"<p><span style='background-color: #ffff99;'>{seed_text}</span>{generated_text[len(seed_text):]}</p>"
+                        st.markdown(highlighted_text, unsafe_allow_html=True)
+                        
+                        # Option to download
+                        st.download_button(
+                            label="Download Generated Text",
+                            data=generated_text,
+                            file_name="generated_text.txt",
+                            mime="text/plain"
+                        )
+        else:
+            default_seed = ' '.join(st.session_state.text_data.split()[:5])
+            seed_text = st.text_area("Enter seed text:", default_seed)
+            
+            # Generation parameters
+            gen_length = st.slider(
+                'Generation Length (words)',
+                min_value=10,
+                max_value=200,
+                value=50,
+                step=10,
+                key='word_gen_length'
+            )
+            
+            gen_temperature = st.slider(
+                'Temperature',
+                min_value=0.1,
+                max_value=2.0,
+                value=temperature,
+                step=0.1,
+                key='word_gen_temperature'
+            )
+            
+            if st.button('Generate Text'):
+                with st.spinner('Generating text...'):
+                    # Create improved generator
+                    improved_generator = ImprovedTextGenerator(
+                        model=st.session_state.model.model,
+                        tokenizer=st.session_state.model.tokenizer,
+                        max_sequence_length=st.session_state.model.max_sequence_length,
+                        char_mode=st.session_state.model.char_mode,
+                        char_to_idx=st.session_state.model.char_to_idx,
+                        idx_to_char=st.session_state.model.idx_to_char,
+                        vocab_size=st.session_state.model.vocab_size
+                    )
+                    
+                    # Generate text with improved generator
+                    generated_text = improved_generator.generate_text(
+                        seed_text,
+                        length=gen_length,
+                        temperature=gen_temperature
+                    )
+                    
+                    # Display generated text
+                    st.markdown("### Generated Text")
+                    
+                    # Highlight seed text
+                    highlighted_text = f"<p><span style='background-color: #ffff99;'>{seed_text}</span>{generated_text[len(seed_text):]}</p>"
+                    st.markdown(highlighted_text, unsafe_allow_html=True)
+                    
+                    # Option to download
+                    st.download_button(
+                        label="Download Generated Text",
+                        data=generated_text,
+                        file_name="generated_text.txt",
+                        mime="text/plain"
+                    )
+        
+        # Temperature exploration
+        st.markdown("### Explore Temperature Effect")
+        st.markdown("""
+        Temperature controls the randomness of text generation:
+        - **Low temperature** (0.1-0.5): More deterministic, repetitive, and conservative
+        - **Medium temperature** (0.6-1.0): Balanced creativity and coherence
+        - **High temperature** (1.1-2.0): More random, creative, and potentially incoherent
+        """)
+        
+        if st.button('Generate with Different Temperatures'):
+            if tokenization_level == 'Character':
+                seed = st.session_state.text_data[:max_sequence_length]
+                length = 100
+            else:
+                seed = ' '.join(st.session_state.text_data.split()[:5])
+                length = 30
+            
+            temperatures = [0.2, 0.7, 1.5]
+            
+            col1, col2, col3 = st.columns(3)
+            
+            for i, temp in enumerate([col1, col2, col3]):
+                with temp:
+                    st.markdown(f"#### Temperature = {temperatures[i]}")
+                    with st.spinner(f'Generating (temp={temperatures[i]})...'):
+                        gen_text = st.session_state.model.generate_text(
+                            seed,
+                            length=length,
+                            temperature=temperatures[i]
+                        )
+                        
+                        # Highlight seed text
+                        highlighted_text = f"<p><span style='background-color: #ffff99;'>{seed}</span>{gen_text[len(seed):]}</p>"
+                        st.markdown(highlighted_text, unsafe_allow_html=True)
+
+with explain_tab:
+    st.markdown("### Understanding RNNs for Text Generation")
+    
+    st.markdown("""
+    #### How RNNs Work for Text Generation
+    
+    Recurrent Neural Networks (RNNs) are particularly well-suited for text generation because:
+    
+    1. **Sequential Processing**: RNNs process text as sequences, maintaining the order
+    2. **Memory Capability**: They can remember previous words or characters
+    3. **Probabilistic Generation**: They learn the probability distribution of the next token
+    
+    #### Types of RNNs Used in This Application
+    
+    1. **Long Short-Term Memory (LSTM)**
+       - Specialized RNN that can learn long-term dependencies
+       - Uses gates to control information flow
+       - Better at capturing long-range patterns in text
+    
+    2. **Gated Recurrent Unit (GRU)**
+       - Simplified version of LSTM with fewer parameters
+       - Often performs similarly to LSTM but trains faster
+       - Good for smaller datasets
+    
+    3. **Attention Mechanism**
+       - Helps the model focus on relevant parts of the input sequence
+       - Improves coherence in longer generated texts
+       - Provides better context awareness
+    
+    #### Tokenization Approaches
+    
+    This application supports two tokenization approaches:
+    
+    1. **Character-level**
+       - Treats each character as a token
+       - Smaller vocabulary size
+       - Can generate novel words
+       - Requires more training to learn word structure
+    
+    2. **Word-level**
+       - Treats each word as a token
+       - Larger vocabulary size
+       - Generates grammatically correct words
+       - May struggle with rare words
+    
+    #### Temperature in Text Generation
+    
+    Temperature controls the randomness of the generated text:
+    
+    - **Low temperature** produces more predictable, repetitive text
+    - **High temperature** produces more diverse, creative, but potentially incoherent text
+    - **Medium temperature** balances coherence and creativity
+    
+    Mathematically, temperature (τ) is applied to the model's output probabilities:
+    
+    P(token) = exp(logit/τ) / Σ exp(logit/τ)
+    
+    #### Applications of Text Generation
+    
+    1. **Creative Writing**
+       - Story generation
+       - Poetry composition
+       - Dialogue creation
+    
+    2. **Content Creation**
+       - Marketing copy
+       - Social media posts
+       - Product descriptions
+    
+    3. **Educational Tools**
+       - Language learning exercises
+       - Writing prompts
+       - Summarization
+    
+    4. **Entertainment**
+       - Interactive fiction
+       - Game dialogue
+       - Character simulation
+    """)
+    
+    # Add diagram of LSTM/GRU architecture
+    st.markdown("### RNN Architecture for Text Generation")
+    
+    st.image("https://miro.medium.com/max/1400/1*sP_tFZ4Oi1gqK5YUXPF4Sw.png", 
+             caption="LSTM/GRU Architecture for Text Generation", 
+             use_column_width=True)
+    
+    # Add explanation of text generation process
+    st.markdown("### Text Generation Process")
+    
+    st.markdown("""
+    The text generation process follows these steps:
+    
+    1. **Tokenization**
+       - Convert text into tokens (characters or words)
+       - Create a vocabulary mapping tokens to indices
+    
+    2. **Sequence Creation**
+       - Create input-output pairs from the text
+       - Input: sequence of tokens
+       - Output: next token in the sequence
+    
+    3. **Model Training**
+       - Train the RNN to predict the next token
+       - Learn patterns and dependencies in the text
+    
+    4. **Text Generation**
+       - Start with a seed text
+       - Predict the next token
+       - Add the predicted token to the sequence
+       - Repeat to generate more text
+    
+    5. **Sampling with Temperature**
+       - Apply temperature to control randomness
+       - Sample from the probability distribution
+       - Higher temperature = more diverse text
+    """)
+    
+    st.image("https://miro.medium.com/max/1400/1*N_kW_KjXBCevO-bHmSjsIw.png", 
+             caption="Text Generation Process", 
+             use_column_width=True)
+
+# Show selected model in sidebar
+st.sidebar.markdown('---')
+st.sidebar.subheader('🧠 Selected Model')
+
+if model_type == 'LSTM':
+    st.sidebar.markdown("""
+    **LSTM Architecture:**
+    - Long Short-Term Memory cells
+    - Specialized gates for information control
+    - Good for capturing long-range dependencies
+    """)
+elif model_type == 'GRU':
+    st.sidebar.markdown("""
+    **GRU Architecture:**
+    - Gated Recurrent Units
+    - Simplified version of LSTM
+    - Faster training with similar performance
+    """)
+elif model_type == 'Attention':
+    st.sidebar.markdown("""
+    **Attention Architecture:**
+    - LSTM/GRU with attention mechanism
+    - Focuses on relevant parts of the input
+    - Improves coherence in generation
+    """)
+
+# Add disclaimer
+st.sidebar.markdown('---')
+st.sidebar.info("""
+**Note**: This app is for educational purposes.
+High-quality text generation typically requires larger models and datasets.
+""")

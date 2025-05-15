@@ -1,0 +1,62 @@
+- All about python
+- syntax and types of errors
+- Variables
+
+- data types 
+
+- Loops 
+
+- Lists 
+- Tuples
+
+- Sets
+- Dictionaries
+
+- Function
+- Lambda Function
+
+- Class
+- Object
+- Inheritance
+
+- RegEx
+
+- Modules
+- Iterators
+- Keywords
+
+=
+
+- Debugging(logging..)
+
+
+- Reading,writing,organizing.. files
+
+- Web Scraping 2
+
+
+- Working with excel spreadsheets
+- Working with pdf and word documents
+
+- Working with csv and json
+
+- sending Email and text messages
+
+- Recursion
+- Generators
+
+- Threading
+- Exception Handling
+
+- *args and **kwargs
+
+- Decorators and Memoization
+
+- list and dictionary Comprehension
+- Map Function
+
+- Collections
+- Magic Methods
+
+- Zip introduction
+- Built-in functions 
