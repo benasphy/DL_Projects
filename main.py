@@ -3,6 +3,7 @@ import streamlit as st
 import subprocess
 import os
 import sys
+import importlib.util
 
 st.set_page_config(
     page_title="Deep Learning Projects",
@@ -183,22 +184,22 @@ def main():
             # Set environment variables to disable TensorFlow plugin loading
             env["TF_DISABLE_PLUGIN_LOADING"] = "1"
         
-        # Launch the selected project
-        python_path = sys.executable
-        cmd = [python_path, "-m", "streamlit", "run", project_path]
-        
-        # Add Streamlit Cloud specific arguments
-        if "STREAMLIT_CLOUD" in os.environ:
-            cmd.extend(["--", "--server.address=0.0.0.0", "--server.port=8501"])
-        else:
-            cmd.extend(["--", "--server.port=8501"])
-        
-        process = subprocess.Popen(cmd, env=env)
-        
-        st.success(f"Launching {project}... Please wait a moment.")
-        
-        # Add iframe to embed the app directly
-        st.components.v1.iframe("http://localhost:8501", height=800, scrolling=True)
+        # Load and run the selected project directly
+        try:
+            # Import the module dynamically
+            module_name = os.path.splitext(os.path.basename(project_path))[0]
+            spec = importlib.util.spec_from_file_location(module_name, project_path)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            
+            # Call the main function if it exists
+            if hasattr(module, 'main'):
+                module.main()
+            else:
+                st.error(f"Could not find main() function in {project}")
+        except Exception as e:
+            st.error(f"Error loading project: {str(e)}")
+            st.exception(e)
         
         # Also provide a link to open in new tab
         st.markdown(f"""
