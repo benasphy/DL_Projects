@@ -2,8 +2,6 @@
 import streamlit as st
 import subprocess
 import os
-import sys
-import importlib.util
 
 st.set_page_config(
     page_title="Deep Learning Projects",
@@ -13,41 +11,37 @@ st.set_page_config(
 
 # Define project structure
 projects = {
-    "TensorFlow Projects (Not Available in Streamlit Cloud)": {
-        "Feed Forward Neural Networks": {
-            "MNIST Recognition": "FeedForwardNN/mnist_recognition/app.py",
-            "Weather Forecasting": "FeedForwardNN/weather_forecasting/app.py"
-        },
-        "Autoencoders": {
-            "Stock Price Prediction": "Autoencoders/stock_prediction/app.py",
-            "Dimensionality Reduction": "Autoencoders/dimensionality_reduction/app.py"
-        },
-        "Convolutional Neural Networks": {
-            "model_performance": "ConvolutionNN/model_performance/app.py"
-        },
-        "Recurrent Neural Networks": {
-            "Bitcoin Price Prediction": "RecurrentNN/bitcoin_prediction/app.py",
-            "Energy Consumption Prediction": "RecurrentNN/energy_consumption/app.py",
-            "Sentiment Analysis": "RecurrentNN/sentiment_analysis/app.py",
-            "Text Generation": "RecurrentNN/text_generation/app.py"
-        },
-        "Generative Adversarial Networks": {
-            "MNIST Generation": "GenerativeAdversarialNetwork/app.py"
-        },
-        "Transformers": {
-            "Toy Example": "Transformers/app.py"
-        },
-        "Graph Neural Networks": {
-            "Toy Example": "GraphNeuralNetworks/app.py"
-        },
-        "Time Series Forecasting": {
-            "LSTM Forecast": "TimeSeriesForecasting/app.py"
-        }
+    "Feed Forward Neural Networks": {
+        "MNIST Recognition": "FeedForwardNN/mnist_recognition/app.py",
+        "Weather Forecasting": "FeedForwardNN/weather_forecasting/app.py"
     },
-    "Available Projects": {
-        "Neural Evolution": {
-            "Cartpole": "NEAT/app.py"
-        }
+    "Autoencoders": {
+        "Stock Price Prediction": "Autoencoders/stock_prediction/app.py",
+        "Dimensionality Reduction": "Autoencoders/dimensionality_reduction/app.py"
+    },
+    "Convolutional Neural Networks": {
+        "model_performance": "ConvolutionNN/model_performance/app.py"
+    },
+    "Recurrent Neural Networks": {
+        "Bitcoin Price Prediction": "RecurrentNN/bitcoin_prediction/app.py",
+        "Energy Consumption Prediction": "RecurrentNN/energy_consumption/app.py",
+        "Sentiment Analysis": "RecurrentNN/sentiment_analysis/app.py",
+        "Text Generation": "RecurrentNN/text_generation/app.py"
+    },
+    "Generative Adversarial Networks": {
+        "MNIST Generation": "GenerativeAdversarialNetwork/app.py"
+    },
+    "Neural Evolution": {
+        "Cartpole": "NEAT/app.py"
+    },
+    "Transformers": {
+        "Toy Example": "Transformers/app.py"
+    },
+    "Graph Neural Networks": {
+        "Toy Example": "GraphNeuralNetworks/app.py"
+    },
+    "Time Series Forecasting": {
+        "LSTM Forecast": "TimeSeriesForecasting/app.py"
     }
 }
 
@@ -65,20 +59,6 @@ def main():
         list(projects.keys()),
         format_func=lambda x: f"📁 {x}"
     )
-    
-    if category == "TensorFlow Projects (Not Available in Streamlit Cloud)":
-        st.sidebar.warning("""
-        🚨 These projects require TensorFlow and are not available in Streamlit Cloud.
-        Please run them locally or use a different deployment platform.
-        """)
-        st.sidebar.markdown("""
-        Available locally:
-        - MNIST Recognition
-        - Weather Forecasting
-        - Stock Price Prediction
-        - Dimensionality Reduction
-        - And more...
-        """)
     
     # Project selection
     project = st.sidebar.selectbox(
@@ -183,17 +163,8 @@ def main():
     if st.button("🚀 Launch Project", type="primary"):
         project_path = os.path.join(os.path.dirname(__file__), projects[category][project])
         
-        # Check if we're running in Streamlit Cloud
-        if "STREAMLIT_CLOUD" in os.environ:
-            st.warning("Running in Streamlit Cloud. No need to kill other apps.")
-        else:
-            # Only kill other apps if not in Streamlit Cloud
-            try:
-                subprocess.run(["pkill", "-f", "streamlit run"], check=True)
-            except FileNotFoundError:
-                st.warning("pkill not found. Skipping process cleanup.")
-            except Exception as e:
-                st.error(f"Error cleaning up processes: {str(e)}")
+        # Kill any running Streamlit apps
+        subprocess.run(["pkill", "-f", "streamlit run"])
         
         # Special handling for text generation to avoid TensorFlow issues
         env = os.environ.copy()
@@ -202,28 +173,16 @@ def main():
             # Set environment variables to disable TensorFlow plugin loading
             env["TF_DISABLE_PLUGIN_LOADING"] = "1"
         
-        # Check if the project requires TensorFlow
-        if category == "TensorFlow Projects (Not Available in Streamlit Cloud)":
-            from utils.tf_placeholder import show_tf_placeholder
-            show_tf_placeholder()
-            return
+        # Launch the selected project
+        cmd = ["/opt/miniconda3/envs/dl-env/bin/python", "-m", "streamlit", "run", 
+               project_path, "--", "--server.port", "8501"]
         
-        # Load and run non-TensorFlow projects
-        try:
-            # Import the module dynamically
-            module_name = os.path.splitext(os.path.basename(project_path))[0]
-            spec = importlib.util.spec_from_file_location(module_name, project_path)
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
-            
-            # Call the main function if it exists
-            if hasattr(module, 'main'):
-                module.main()
-            else:
-                st.error(f"Could not find main() function in {project}")
-        except Exception as e:
-            st.error(f"Error loading project: {str(e)}")
-            st.exception(e)
+        process = subprocess.Popen(cmd, env=env)
+        
+        st.success(f"Launching {project}... Please wait a moment.")
+        
+        # Add iframe to embed the app directly
+        st.components.v1.iframe("http://localhost:8501", height=800, scrolling=True)
         
         # Also provide a link to open in new tab
         st.markdown(f"""
