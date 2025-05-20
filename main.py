@@ -14,37 +14,41 @@ st.set_page_config(
 
 # Define project structure
 projects = {
-    "Feed Forward Neural Networks": {
-        "MNIST Recognition": "FeedForwardNN/mnist_recognition/app.py",
-        "Weather Forecasting": "FeedForwardNN/weather_forecasting/app.py"
+    "TensorFlow Projects (Not Available in Streamlit Cloud)": {
+        "Feed Forward Neural Networks": {
+            "MNIST Recognition": "FeedForwardNN/mnist_recognition/app.py",
+            "Weather Forecasting": "FeedForwardNN/weather_forecasting/app.py"
+        },
+        "Autoencoders": {
+            "Stock Price Prediction": "Autoencoders/stock_prediction/app.py",
+            "Dimensionality Reduction": "Autoencoders/dimensionality_reduction/app.py"
+        },
+        "Convolutional Neural Networks": {
+            "model_performance": "ConvolutionNN/model_performance/app.py"
+        },
+        "Recurrent Neural Networks": {
+            "Bitcoin Price Prediction": "RecurrentNN/bitcoin_prediction/app.py",
+            "Energy Consumption Prediction": "RecurrentNN/energy_consumption/app.py",
+            "Sentiment Analysis": "RecurrentNN/sentiment_analysis/app.py",
+            "Text Generation": "RecurrentNN/text_generation/app.py"
+        },
+        "Generative Adversarial Networks": {
+            "MNIST Generation": "GenerativeAdversarialNetwork/app.py"
+        },
+        "Transformers": {
+            "Toy Example": "Transformers/app.py"
+        },
+        "Graph Neural Networks": {
+            "Toy Example": "GraphNeuralNetworks/app.py"
+        },
+        "Time Series Forecasting": {
+            "LSTM Forecast": "TimeSeriesForecasting/app.py"
+        }
     },
-    "Autoencoders": {
-        "Stock Price Prediction": "Autoencoders/stock_prediction/app.py",
-        "Dimensionality Reduction": "Autoencoders/dimensionality_reduction/app.py"
-    },
-    "Convolutional Neural Networks": {
-        "model_performance": "ConvolutionNN/model_performance/app.py"
-    },
-    "Recurrent Neural Networks": {
-        "Bitcoin Price Prediction": "RecurrentNN/bitcoin_prediction/app.py",
-        "Energy Consumption Prediction": "RecurrentNN/energy_consumption/app.py",
-        "Sentiment Analysis": "RecurrentNN/sentiment_analysis/app.py",
-        "Text Generation": "RecurrentNN/text_generation/app.py"
-    },
-    "Generative Adversarial Networks": {
-        "MNIST Generation": "GenerativeAdversarialNetwork/app.py"
-    },
-    "Neural Evolution": {
-        "Cartpole": "NEAT/app.py"
-    },
-    "Transformers": {
-        "Toy Example": "Transformers/app.py"
-    },
-    "Graph Neural Networks": {
-        "Toy Example": "GraphNeuralNetworks/app.py"
-    },
-    "Time Series Forecasting": {
-        "LSTM Forecast": "TimeSeriesForecasting/app.py"
+    "Available Projects": {
+        "Neural Evolution": {
+            "Cartpole": "NEAT/app.py"
+        }
     }
 }
 
@@ -62,6 +66,20 @@ def main():
         list(projects.keys()),
         format_func=lambda x: f"📁 {x}"
     )
+    
+    if category == "TensorFlow Projects (Not Available in Streamlit Cloud)":
+        st.sidebar.warning("""
+        🚨 These projects require TensorFlow and are not available in Streamlit Cloud.
+        Please run them locally or use a different deployment platform.
+        """)
+        st.sidebar.markdown("""
+        Available locally:
+        - MNIST Recognition
+        - Weather Forecasting
+        - Stock Price Prediction
+        - Dimensionality Reduction
+        - And more...
+        """)
     
     # Project selection
     project = st.sidebar.selectbox(
