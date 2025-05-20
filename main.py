@@ -163,8 +163,17 @@ def main():
     if st.button("🚀 Launch Project", type="primary"):
         project_path = os.path.join(os.path.dirname(__file__), projects[category][project])
         
-        # Kill any running Streamlit apps
-        subprocess.run(["pkill", "-f", "streamlit run"])
+        # Check if we're running in Streamlit Cloud
+        if "STREAMLIT_CLOUD" in os.environ:
+            st.warning("Running in Streamlit Cloud. No need to kill other apps.")
+        else:
+            # Only kill other apps if not in Streamlit Cloud
+            try:
+                subprocess.run(["pkill", "-f", "streamlit run"], check=True)
+            except FileNotFoundError:
+                st.warning("pkill not found. Skipping process cleanup.")
+            except Exception as e:
+                st.error(f"Error cleaning up processes: {str(e)}")
         
         # Special handling for text generation to avoid TensorFlow issues
         env = os.environ.copy()
