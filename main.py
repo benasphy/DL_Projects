@@ -192,11 +192,25 @@ def main():
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
             
-            # Call the main function if it exists
-            if hasattr(module, 'main'):
-                module.main()
-            else:
-                st.error(f"Could not find main() function in {project}")
+            # Check if the project requires TensorFlow
+            try:
+                import tensorflow
+                # Call the main function if it exists
+                if hasattr(module, 'main'):
+                    module.main()
+                else:
+                    st.error(f"Could not find main() function in {project}")
+            except ImportError:
+                st.warning("""
+                🚨 TensorFlow is not available in this environment.
+                This project requires TensorFlow, which is not supported in Streamlit Cloud.
+                Please try:
+                1. Running this project locally
+                2. Using a different deployment platform
+                3. Selecting a project that doesn't require TensorFlow
+                """)
+                st.error(f"Error loading project: {str(e)}")
+                st.exception(e)
         except Exception as e:
             st.error(f"Error loading project: {str(e)}")
             st.exception(e)
