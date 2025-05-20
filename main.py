@@ -4,7 +4,6 @@ import subprocess
 import os
 import sys
 import importlib.util
-from utils.tf_compatibility import TensorFlowNotAvailable
 
 st.set_page_config(
     page_title="Deep Learning Projects",
