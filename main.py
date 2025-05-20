@@ -202,7 +202,26 @@ def main():
             # Set environment variables to disable TensorFlow plugin loading
             env["TF_DISABLE_PLUGIN_LOADING"] = "1"
         
-        # Load and run the selected project directly
+        # Check if the project requires TensorFlow
+        if category == "TensorFlow Projects (Not Available in Streamlit Cloud)":
+            st.warning("""
+            🚨 This project requires TensorFlow, which is not available in Streamlit Cloud.
+            
+            To run this project:
+            1. Download the code
+            2. Install TensorFlow locally
+            3. Run the project on your machine
+            
+            Available locally:
+            - MNIST Recognition
+            - Weather Forecasting
+            - Stock Price Prediction
+            - Dimensionality Reduction
+            - And more...
+            """)
+            return
+        
+        # Load and run non-TensorFlow projects
         try:
             # Import the module dynamically
             module_name = os.path.splitext(os.path.basename(project_path))[0]
@@ -210,30 +229,11 @@ def main():
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
             
-            # Check if the project requires TensorFlow
-            try:
-                import tensorflow
-                # Call the main function if it exists
-                if hasattr(module, 'main'):
-                    module.main()
-                else:
-                    st.error(f"Could not find main() function in {project}")
-            except ImportError:
-                st.warning("""
-                🚨 This project requires TensorFlow, which is not available in Streamlit Cloud.
-                
-                To run this project:
-                1. Download the code
-                2. Install TensorFlow locally
-                3. Run the project on your machine
-                
-                Available locally:
-                - MNIST Recognition
-                - Weather Forecasting
-                - Stock Price Prediction
-                - Dimensionality Reduction
-                - And more...
-                """)
+            # Call the main function if it exists
+            if hasattr(module, 'main'):
+                module.main()
+            else:
+                st.error(f"Could not find main() function in {project}")
         except Exception as e:
             st.error(f"Error loading project: {str(e)}")
             st.exception(e)
