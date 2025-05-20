@@ -204,21 +204,8 @@ def main():
         
         # Check if the project requires TensorFlow
         if category == "TensorFlow Projects (Not Available in Streamlit Cloud)":
-            st.warning("""
-            🚨 This project requires TensorFlow, which is not available in Streamlit Cloud.
-            
-            To run this project:
-            1. Download the code
-            2. Install TensorFlow locally
-            3. Run the project on your machine
-            
-            Available locally:
-            - MNIST Recognition
-            - Weather Forecasting
-            - Stock Price Prediction
-            - Dimensionality Reduction
-            - And more...
-            """)
+            from utils.tf_placeholder import show_tf_placeholder
+            show_tf_placeholder()
             return
         
         # Load and run non-TensorFlow projects
