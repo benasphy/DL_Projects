@@ -183,8 +183,12 @@ def main():
             env["TF_DISABLE_PLUGIN_LOADING"] = "1"
         
         # Launch the selected project
-        cmd = ["/opt/miniconda3/envs/dl-env/bin/python", "-m", "streamlit", "run", 
-               project_path, "--", "--server.port", "8501"]
+        python_path = sys.executable
+        cmd = [python_path, "-m", "streamlit", "run", project_path, "--", "--server.port", "8501"]
+        
+        # Add --server.address=0.0.0.0 for Streamlit Cloud
+        if "STREAMLIT_CLOUD" in os.environ:
+            cmd.extend(["--", "--server.address=0.0.0.0"])
         
         process = subprocess.Popen(cmd, env=env)
         
