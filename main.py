@@ -221,15 +221,20 @@ def main():
                     st.error(f"Could not find main() function in {project}")
             except ImportError:
                 st.warning("""
-                🚨 TensorFlow is not available in this environment.
-                This project requires TensorFlow, which is not supported in Streamlit Cloud.
-                Please try:
-                1. Running this project locally
-                2. Using a different deployment platform
-                3. Selecting a project that doesn't require TensorFlow
+                🚨 This project requires TensorFlow, which is not available in Streamlit Cloud.
+                
+                To run this project:
+                1. Download the code
+                2. Install TensorFlow locally
+                3. Run the project on your machine
+                
+                Available locally:
+                - MNIST Recognition
+                - Weather Forecasting
+                - Stock Price Prediction
+                - Dimensionality Reduction
+                - And more...
                 """)
-                st.error(f"Error loading project: {str(e)}")
-                st.exception(e)
         except Exception as e:
             st.error(f"Error loading project: {str(e)}")
             st.exception(e)
