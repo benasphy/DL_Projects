@@ -2,6 +2,7 @@
 import streamlit as st
 import subprocess
 import os
+import sys
 
 st.set_page_config(
     page_title="Deep Learning Projects",
@@ -184,11 +185,13 @@ def main():
         
         # Launch the selected project
         python_path = sys.executable
-        cmd = [python_path, "-m", "streamlit", "run", project_path, "--", "--server.port", "8501"]
+        cmd = [python_path, "-m", "streamlit", "run", project_path]
         
-        # Add --server.address=0.0.0.0 for Streamlit Cloud
+        # Add Streamlit Cloud specific arguments
         if "STREAMLIT_CLOUD" in os.environ:
-            cmd.extend(["--", "--server.address=0.0.0.0"])
+            cmd.extend(["--", "--server.address=0.0.0.0", "--server.port=8501"])
+        else:
+            cmd.extend(["--", "--server.port=8501"])
         
         process = subprocess.Popen(cmd, env=env)
         
